@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ledger — Expense Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="titles">
+      <h1>Ledger</h1>
+      <p>Personal expense register</p>
+    </div>
+    <div class="ledger-no" id="ledgerMeta">—</div>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab active" data-screen="dashboard">Dashboard</button>
+    <button class="tab" data-screen="add">+ Add Expense</button>
+  </nav>
+
+  <!-- ===== Screen: Dashboard ===== -->
+  <section class="screen active" id="screenDashboard">
+
+    <div class="view-controls">
+      <div class="pill-toggle compact" id="viewModeToggle">
+        <button type="button" class="pill active" data-val="month">Month</button>
+        <button type="button" class="pill" data-val="year">Year</button>
+      </div>
+      <select id="periodSelect"></select>
+    </div>
+
+    <div class="toolbar">
+      <div class="save-status" id="saveStatus">Entries are saved in this browser. Export anytime for an Excel copy.</div>
+      <button class="btn ghost" id="exportBtn">Export to Excel</button>
+    </div>
+
+    <div class="kpis">
+      <div class="kpi stamp">
+        <div class="stamp-circle">
+          <div class="s-label">Total</div>
+          <div class="s-value" id="kpiTotal">₹0</div>
+          <div class="s-foot" id="kpiTotalFoot">spent</div>
+        </div>
+      </div>
+      <div class="kpi recurring clickable" id="kpiRecurringCard" role="button" tabindex="0">
+        <span class="label">Recurring</span>
+        <span class="value" id="kpiRecurring">₹0</span>
+        <span class="sub" id="kpiRecurringSub">0% of spend</span>
+      </div>
+      <div class="kpi nonrecurring clickable" id="kpiNonRecurringCard" role="button" tabindex="0">
+        <span class="label">Non-recurring</span>
+        <span class="value" id="kpiNonRecurring">₹0</span>
+        <span class="sub" id="kpiNonRecurringSub">0% of spend</span>
+      </div>
+      <div class="kpi avoidable clickable" id="kpiAvoidableCard" role="button" tabindex="0">
+        <span class="label">Can be avoided</span>
+        <span class="value" id="kpiAvoidable">₹0</span>
+        <span class="sub" id="kpiAvoidableSub">0% of spend</span>
+      </div>
+      <div class="kpi">
+        <span class="label">Entries</span>
+        <span class="value" id="kpiCount">0</span>
+        <span class="sub" id="kpiCountSub">transactions</span>
+      </div>
+    </div>
+
+    <div class="charts-row">
+      <div class="panel">
+        <div class="panel-head">
+          <h2 id="catTitle">Spend by category</h2>
+          <div id="crumbWrap"></div>
+        </div>
+        <div class="chart-box"><canvas id="catChart"></canvas></div>
+        <div class="hint" id="catHint">Click a bar to open its sub-categories and filter everything below.</div>
+      </div>
+      <div class="panel">
+        <h2 id="splitTitle">Recurring vs. non-recurring</h2>
+        <div class="chart-box"><canvas id="splitChart"></canvas></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h2 id="timeTitle">Spend over time</h2>
+        <div class="legend-note">
+          <span id="weekendLegend"><span class="dot" style="background:#d8cba3;"></span>Weekend</span>
+          <span><span class="dot" style="background:var(--stamp);"></span>Daily spend</span>
+        </div>
+      </div>
+      <div class="chart-box tall"><canvas id="timeChart"></canvas></div>
+    </div>
+
+    <footer class="foot">Everything here runs locally in your browser. Nothing is uploaded anywhere.</footer>
+  </section>
+
+  <!-- ===== Screen: Add Expense ===== -->
+  <section class="screen" id="screenAdd">
+    <div class="entry-card">
+      <h2>New ledger entry</h2>
+      <p class="lede">Date and time are stamped automatically. Log it and it lands straight in your dashboard.</p>
+      <form id="entryForm">
+        <div class="field">
+          <label for="fDetails">Transaction details</label>
+          <input type="text" id="fDetails" placeholder="e.g. Paid to Sri Gurunath Stores" required>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="fAmount">Amount (₹)</label>
+            <input type="number" id="fAmount" min="0.01" step="0.01" placeholder="0.00" required>
+          </div>
+          <div class="field">
+            <label>Type</label>
+            <div class="pill-toggle" id="fTypeToggle">
+              <button type="button" class="pill active" data-val="spend">Spent</button>
+              <button type="button" class="pill" data-val="credit">Received</button>
+            </div>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="fCat">Category</label>
+            <select id="fCat"></select>
+            <input type="text" id="fCatNew" placeholder="New category name" style="display:none;">
+          </div>
+          <div class="field">
+            <label for="fSubcat">Sub-category</label>
+            <select id="fSubcat"></select>
+            <input type="text" id="fSubcatNew" placeholder="New sub-category name" style="display:none;">
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Frequency</label>
+            <div class="pill-toggle" id="fFreqToggle">
+              <button type="button" class="pill active" data-val="Recurring">Recurring</button>
+              <button type="button" class="pill" data-val="Non-recurring">Non-recurring</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>Can be avoided?</label>
+            <div class="pill-toggle" id="fAvoidableToggle">
+              <button type="button" class="pill active" data-val="no">No</button>
+              <button type="button" class="pill" data-val="yes">Yes</button>
+            </div>
+          </div>
+        </div>
+        <div class="field">
+          <label for="fTags">Tags <span class="opt">(optional)</span></label>
+          <input type="text" id="fTags" placeholder="#Groceries">
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="fDate">Date</label>
+            <input type="date" id="fDate">
+          </div>
+          <div class="field">
+            <label for="fTime">Time <span class="opt">(auto)</span></label>
+            <input type="text" id="fTime" disabled>
+          </div>
+        </div>
+        <div class="entry-actions">
+          <button type="button" class="btn ghost" id="viewDashboardBtn">View dashboard</button>
+          <button type="submit" class="btn">Save entry</button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <div class="toast" id="toast"></div>
+
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
